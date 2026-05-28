@@ -57,7 +57,7 @@ class PoseLibrary:
         right_angle = self._line_angle(landmarks[14], landmarks[16])
 
         left_is_diagonal = self._compare_angle(abs(left_angle), 45.0)
-        right_is_diagonal = self._compare_angle(abs(right_angle), 45.0)
+        right_is_diagonal = self._compare_angle(abs(right_angle), 135.0)
         wrists_are_crossed = landmarks[15]["x"] > landmarks[16]["x"]
 
         return left_is_diagonal and right_is_diagonal and wrists_are_crossed
@@ -72,5 +72,5 @@ class PoseLibrary:
     @staticmethod
     def _line_angle(start: Dict[str, float], end: Dict[str, float]) -> float:
         dx = end["x"] - start["x"]
-        dy = end["y"] - start["y"]
+        dy = start["y"] - end["y"]
         return math.degrees(math.atan2(dy, dx))

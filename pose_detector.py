@@ -28,10 +28,17 @@ class LandmarkSmoother:
         self.alpha = alpha
         self.previous: Dict[Tuple[int, int], LandmarkData] = {}
 
-    def smooth_landmark(self, player_id: int, landmark_id: int, landmark) -> LandmarkData:
+    def smooth_landmark(
+        self,
+        player_id: int,
+        landmark_id: int,
+        landmark,
+        mirror_x: bool = False,
+    ) -> LandmarkData:
         key = (player_id, landmark_id)
+        x = 1.0 - landmark.x if mirror_x else landmark.x
         current = {
-            "x": landmark.x,
+            "x": x,
             "y": landmark.y,
             "z": landmark.z,
             "visibility": landmark.visibility,
@@ -59,9 +66,15 @@ class LandmarkSmoother:
         player_id: int,
         pose_landmarks,
         tracked_ids: Iterable[int],
+        mirror_x: bool = False,
     ) -> PlayerLandmarks:
         return {
-            landmark_id: self.smooth_landmark(player_id, landmark_id, pose_landmarks[landmark_id])
+            landmark_id: self.smooth_landmark(
+                player_id,
+                landmark_id,
+                pose_landmarks[landmark_id],
+                mirror_x=mirror_x,
+            )
             for landmark_id in tracked_ids
         }
 
@@ -85,7 +98,7 @@ class PoseDetector:
         31,
         32,
     ]
-
+    
     CONNECTIONS = [
         (11, 12),
         (11, 13),
@@ -133,7 +146,7 @@ class PoseDetector:
 
         drawn_frame = self.draw_player_areas(frame)
 
-        rgb_frame = cv2.cvtColor(drawn_frame, cv2.COLOR_BGR2RGB)
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
 
         timestamp_ms = int(self.frame_index * 1000 / self.config.fps)
@@ -141,7 +154,7 @@ class PoseDetector:
 
         result = self.landmarker.detect_for_video(mp_image, timestamp_ms)
         poses = result.pose_landmarks or []
-        sorted_poses = sorted(poses, key=self._get_pose_center_x)
+        sorted_poses = sorted(poses, key=lambda pose: self._get_pose_center_x(pose, mirror_x=True))
 
         landmarks_by_player: Dict[int, PlayerLandmarks] = {}
 
@@ -150,6 +163,7 @@ class PoseDetector:
                 player_id=player_id,
                 pose_landmarks=pose_landmarks,
                 tracked_ids=self.TRACKED_LANDMARKS,
+                mirror_x=True,
             )
             landmarks_by_player[player_id] = smoothed_landmarks
             self._draw_landmarks(drawn_frame, smoothed_landmarks)
@@ -175,9 +189,13 @@ class PoseDetector:
             self.camera.close()
 
     @staticmethod
-    def _get_pose_center_x(pose_landmarks) -> float:
+    def _get_pose_center_x(pose_landmarks, mirror_x: bool = False) -> float:
         key_indices = [11, 12, 23, 24]
-        return sum(pose_landmarks[index].x for index in key_indices) / len(key_indices)
+        xs = [
+            1.0 - pose_landmarks[index].x if mirror_x else pose_landmarks[index].x
+            for index in key_indices
+        ]
+        return sum(xs) / len(xs)
 
     @staticmethod
     def _to_pixel(landmark: LandmarkData, width: int, height: int) -> Tuple[int, int]:
@@ -198,10 +216,19 @@ class PoseDetector:
     def _draw_landmarks(self, frame, landmarks: PlayerLandmarks):
         height, width, _ = frame.shape
 
-        for landmark in landmarks.values():
+        for landmark_id, landmark in landmarks.items():
             x, y = self._to_pixel(landmark, width, height)
             if 0 <= x < width and 0 <= y < height:
                 cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                cv2.putText(
+                    frame,
+                    str(landmark_id),
+                    (x + 5, y - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.4,
+                    (0, 255, 255),
+                    1,
+                )
 
         for start_id, end_id in self.CONNECTIONS:
             if start_id not in landmarks or end_id not in landmarks:

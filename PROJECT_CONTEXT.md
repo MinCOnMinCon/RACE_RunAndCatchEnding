@@ -423,3 +423,210 @@ Notion의 `컴비 플젝 게임 기획` 페이지와 그 하위 `코드 구조` 
 - 초기 포즈 판정은 x, y 좌표만 사용한다.
 - z축은 나중에 필요할 때만 추가한다.
 - 포즈 rule은 느슨하게 시작하고, 테스트 후 필요한 조건만 보강한다.
+
+## 14. 2026년 5월 28일 작업 정리
+
+### PoseConnector 설계
+
+`pose_connector.py`를 새로 만들었다.
+
+역할:
+
+```text
+PoseConnector
+-> PoseDetector.process_frame() 호출
+-> drawn_frame, landmarks_by_player 받기
+-> PoseLibrary에서 플레이어별 PoseRule 가져오기
+-> 각 플레이어의 현재 랜드마크와 자기 PoseRule 비교
+-> 성공 여부, drawn_frame, pose_rules_by_player 반환
+```
+
+중요 결정:
+
+- 두 플레이어가 같은 포즈를 따라 하는 구조가 아니다.
+- Player 1, Player 2가 각각 다른 목표 포즈를 가진다.
+- 랜덤 선택이라 같은 포즈가 나올 수는 있다.
+- 각 플레이어는 이전 프레임에서 자기 포즈를 성공했을 때만 새 포즈를 받는다.
+- 처음에는 포즈 룰이 없으므로, `success_by_player`를 `{0: True, 1: True}`로 시작해서 첫 `update()`에서 룰을 받게 했다.
+
+현재 핵심 상태:
+
+```python
+self.current_rules_by_player = {
+    0: None,
+    1: None,
+}
+
+self.success_by_player = {
+    0: True,
+    1: True,
+}
+```
+
+`update()` 반환값은 `PoseConnectorResult` dataclass다.
+
+```python
+PoseConnectorResult(
+    success_by_player=...,
+    drawn_frame=...,
+    pose_rules_by_player=...,
+)
+```
+
+이렇게 한 이유:
+
+- `GameManager`가 `PoseConnector.update()`를 한 번만 호출해도 된다.
+- 그 결과로 렌더링 데이터도 만들고, 성공 여부도 확인할 수 있다.
+- 튜플로 3개를 반환하는 것보다 필드명이 있어서 나중에 읽기 쉽다.
+
+### Renderer 설계
+
+`renderer.py`를 새로 만들었다.
+
+현재는 테스트 단계라 `drawn_frame`만 OpenCV 창에 띄운다.
+
+```text
+Renderer.render(RenderData)
+-> cv2.imshow()
+```
+
+`RenderData`도 만들었다.
+
+```python
+RenderData(
+    drawn_frame=...,
+    pose_rules_by_player=...,
+)
+```
+
+중요 결정:
+
+- `Renderer`가 `PoseConnector`나 나중에 만들 `PlayerState`를 직접 참조하지 않게 한다.
+- `GameManager`가 렌더링에 필요한 데이터를 모아서 `RenderData`로 넘긴다.
+- 이렇게 해야 렌더러가 게임 로직 클래스에 덜 의존한다.
+
+### GameManager 설계
+
+`game_manager.py`를 새로 만들었다.
+
+현재 목표:
+
+```text
+PoseConnector.update() 호출
+-> PoseConnectorResult 받기
+-> RenderData 만들기
+-> Renderer.render() 호출
+-> success_by_player 출력
+```
+
+현재 실행 흐름:
+
+```python
+pose_result = self.pose_connector.update()
+render_data = self._make_render_data(pose_result)
+
+self.renderer.render(render_data)
+print(pose_result.success_by_player)
+```
+
+`try/finally`를 사용했다.
+
+이유:
+
+- 게임 루프 중 에러가 나거나 `q`로 종료해도 `close()`가 실행되게 하기 위해서다.
+- 카메라와 OpenCV 창은 반드시 정리해야 한다.
+
+### 클래스 의존 관계
+
+최종적으로 정한 관계:
+
+```text
+GameManager
+-> Renderer
+-> PoseConnector
+   -> PoseDetector
+      -> Camera
+   -> PoseLibrary
+```
+
+생성 방식:
+
+- `PoseDetector`는 `camera=None`이면 내부에서 `Camera()`를 만든다.
+- `PoseConnector`는 `detector=None`, `library=None`이면 내부에서 `PoseDetector()`, `PoseLibrary()`를 만든다.
+- `GameManager`는 현재 파라미터를 받지 않고 내부에서 `PoseConnector()`, `Renderer()`를 만든다.
+
+판단:
+
+- 지금 단계에서는 `GameManager`가 무조건 직접 생성하는 방식이 단순해서 좋다.
+- 나중에 테스트가 필요하면 다시 외부 객체 주입 방식으로 바꿀 수 있다.
+
+### KeyError 문제
+
+런타임 중 `KeyError`가 발생했다.
+
+원인:
+
+초기에는 성공 여부가 다음처럼 들어 있었다.
+
+```python
+{0: True, 1: True}
+```
+
+그런데 사람이 카메라에 잡히지 않으면 `landmarks_by_player`가 `{}`가 된다.
+
+기존 `_check_players()`는 감지된 플레이어만 결과에 넣었기 때문에, 사람이 안 잡힌 프레임에서는 결과가 `{}`가 됐다.
+
+그 뒤 다음 프레임에서 아래 코드가 실행되면:
+
+```python
+self.success_by_player[player_id]
+```
+
+`success_by_player` 안에 `0`, `1` key가 없어서 `KeyError: 0`이 발생했다.
+
+해결:
+
+`_check_players()`가 항상 모든 플레이어 key를 유지하게 수정했다.
+
+사람이 안 잡힌 플레이어는 `False`로 둔다.
+
+```python
+{
+    0: False,
+    1: False,
+}
+```
+
+### OpenCV 창이 바로 꺼지는 문제
+
+처음에는 `cv2.imshow()` 뒤에 아무것도 없어서 바로 꺼지는 것처럼 보일 수 있다고 생각했다.
+
+하지만 현재 구조에서는 `Renderer.should_quit()` 안에서 `cv2.waitKey(1)`을 호출하고 있다.
+
+```python
+cv2.waitKey(1)
+```
+
+그래서 더 유력한 원인은 `KeyError`로 게임 루프가 중단되고, `finally`에서 카메라와 창이 닫힌 것이었다.
+
+### MediaPipe 경고 로그
+
+실행 중 다음 경고가 떴다.
+
+```text
+Feedback manager requires a model with a single signature inference.
+Disabling support for feedback tensors.
+```
+
+이건 MediaPipe 내부 warning이다.
+
+의미:
+
+- 현재 사용하는 `.task` 모델이 MediaPipe의 feedback tensor 기능 조건과 맞지 않아서 그 기능을 끈다는 뜻이다.
+- 포즈 인식 자체가 실패했다는 뜻은 아니다.
+- 프로그램이 계속 실행되면 무시해도 된다.
+
+판단:
+
+- 지금은 신경 쓰지 않아도 된다.
+- 창이 꺼지거나 프로그램이 종료된다면 이 warning보다 Python 예외나 카메라 문제를 먼저 봐야 한다.
