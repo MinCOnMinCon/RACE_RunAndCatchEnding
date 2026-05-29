@@ -30,15 +30,16 @@ class PoseConnector:
         self.success_by_player: Dict[int, bool] = {
             player_id: True for player_id in range(self.detector.config.max_players)
         }
+        self.previous_success_by_player: Dict[int, bool] = {
+            player_id: False for player_id in range(self.detector.config.max_players)
+        }
 
-    def update(
-        self,
-        max_difficulty: int | None = None,
-    ) -> PoseConnectorResult:
-        self._refresh_rules_for_successful_players(max_difficulty=max_difficulty)
+    def update(self) -> PoseConnectorResult:
+        self._refresh_rules_for_successful_players()
 
         self.drawn_frame, self.landmarks_by_player = self.detector.process_frame()
-        self.success_by_player = self._check_players()
+        raw_success_by_player = self._check_players()
+        self.success_by_player = self._filter_consecutive_success(raw_success_by_player)
 
         return PoseConnectorResult(
             success_by_player=self.success_by_player,
@@ -65,10 +66,25 @@ class PoseConnector:
 
         return success_by_player
 
-    def _refresh_rules_for_successful_players(self, max_difficulty: int | None):
+    def _filter_consecutive_success(
+        self,
+        raw_success_by_player: Dict[int, bool],
+    ) -> Dict[int, bool]:
+        filtered_success_by_player: Dict[int, bool] = {}
+
+        for player_id, is_success in raw_success_by_player.items():
+            filtered_success_by_player[player_id] = (
+                is_success
+                and not self.previous_success_by_player.get(player_id, False)
+            )
+
+        self.previous_success_by_player = dict(filtered_success_by_player)
+        return filtered_success_by_player
+
+    def _refresh_rules_for_successful_players(self, rule_id: int | None = None):
         for player_id in range(self.detector.config.max_players):
             if self.success_by_player[player_id]:
                 self.current_rules_by_player[player_id] = self.library.get_random_rule(
-                    max_difficulty=max_difficulty
+                    rule_id=rule_id
                 )
                 self.success_by_player[player_id] = False

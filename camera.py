@@ -5,8 +5,8 @@ class Camera:
     def __init__(
         self,
         camera_index: int = 0,
-        width: int = 1280,
-        height: int = 720,
+        width: int = 1920,
+        height: int = 1080,
     ):
         self.camera_index = camera_index
         self.width = width

@@ -81,6 +81,9 @@ class LandmarkSmoother:
 
 class PoseDetector:
     TRACKED_LANDMARKS = [
+        0,
+        7,
+        8,
         11,
         12,
         13,
@@ -89,17 +92,11 @@ class PoseDetector:
         16,
         23,
         24,
-        25,
-        26,
-        27,
-        28,
-        29,
-        30,
-        31,
-        32,
     ]
     
     CONNECTIONS = [
+        (7, 0),
+        (0, 8),
         (11, 12),
         (11, 13),
         (13, 15),
@@ -108,14 +105,6 @@ class PoseDetector:
         (11, 23),
         (12, 24),
         (23, 24),
-        (23, 25),
-        (25, 27),
-        (27, 29),
-        (29, 31),
-        (24, 26),
-        (26, 28),
-        (28, 30),
-        (30, 32),
     ]
 
     def __init__(self, config: PoseDetectorConfig | None = None, camera: Camera | None = None):
@@ -171,17 +160,7 @@ class PoseDetector:
         return drawn_frame, landmarks_by_player
 
     def draw_player_areas(self, frame):
-        drawn_frame = cv2.flip(frame, 1)
-        height, width, _ = drawn_frame.shape
-        center_x = width // 2
-
-        cv2.line(drawn_frame, (center_x, 0), (center_x, height), (0, 0, 255), 2)
-
-        label_y = height - 40
-        self._draw_centered_text(drawn_frame, "Player 1", width // 4, label_y)
-        self._draw_centered_text(drawn_frame, "Player 2", center_x + width // 4, label_y)
-
-        return drawn_frame
+        return cv2.flip(frame, 1)
 
     def close(self):
         self.landmarker.close()
