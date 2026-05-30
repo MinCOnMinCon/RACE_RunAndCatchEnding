@@ -48,6 +48,7 @@ class Renderer:
         self.font_large = self._make_font(36)
         self.font_medium = self._make_font(28)
         self.font_small = self._make_font(24)
+        self.pose_images: Dict[str, pygame.Surface] = {}
 
     def render(self, data: RenderData):
         if data.drawn_frame is None:
@@ -166,10 +167,9 @@ class Renderer:
         area_x = player_id * self.player_width
 
         pose_rule = data.pose_rules_by_player.get(player_id)
-        pose_name = pose_rule.name if pose_rule else "None"
 
         self._draw_player_border(data, player_id, area_x)
-        self._draw_target_pose(area_x + 16, 16, pose_name)
+        self._draw_target_pose(area_x + 16, 16, pose_rule)
         self._draw_player_stats(data, player_id, area_x)
         self._draw_progress_track(data, player_id, area_x)
 
@@ -194,17 +194,39 @@ class Renderer:
         pygame.draw.rect(border, border_color, border.get_rect(), 2)
         self.screen.blit(border, rect.topleft)
 
-    def _draw_target_pose(self, x: int, y: int, pose_name: str) -> None:
+    def _draw_target_pose(self, x: int, y: int, pose_rule: PoseRule | None) -> None:
         rect = pygame.Rect(x, y, self.target_pose_box_size, self.target_pose_box_size)
         self._draw_panel(rect, alpha=120)
         pygame.draw.rect(self.screen, (255, 255, 255), rect, 3)
 
-        self._draw_centered_text(
-            pose_name,
-            self.font_medium,
-            rect.centerx,
-            rect.centery - self.font_medium.get_height() // 2,
-        )
+        pose_name = pose_rule.name if pose_rule else "None"
+        pose_alias = pose_rule.alias if pose_rule else "None"
+        pose_image = self._get_pose_image(pose_name)
+
+        if pose_image is not None:
+            pose_image.set_alpha(102)
+            image_rect = pose_image.get_rect(center=rect.center)
+            self.screen.blit(pose_image, image_rect)
+        else:
+            self._draw_centered_text(
+                pose_name,
+                self.font_medium,
+                rect.centerx,
+                rect.centery - self.font_medium.get_height() // 2,
+            )
+
+        self._draw_pose_alias_panel(rect, pose_alias)
+
+    def _draw_pose_alias_panel(self, target_rect: pygame.Rect, pose_alias: str) -> None:
+        text_width = self.font_small.size(pose_alias)[0]
+        panel_width = min(max(text_width + 28, target_rect.width), self.player_width - 32)
+        panel_height = 42
+        panel_rect = pygame.Rect(0, target_rect.bottom + 10, panel_width, panel_height)
+        panel_rect.centerx = target_rect.centerx
+
+        self._draw_panel(panel_rect, alpha=155)
+        text_y = panel_rect.centery - self.font_small.get_height() // 2
+        self._draw_centered_text(pose_alias, self.font_small, panel_rect.centerx, text_y)
 
     def _draw_player_stats(self, data: RenderData, player_id: int, area_x: int) -> None:
         speed = data.cur_speed_by_player.get(player_id, 0.0)
@@ -391,6 +413,35 @@ class Renderer:
 
         image_width, image_height = image.get_size()
         scale = min(self.window_width / image_width, self.window_height / image_height)
+        scaled_size = (
+            max(1, int(image_width * scale)),
+            max(1, int(image_height * scale)),
+        )
+        return pygame.transform.smoothscale(image, scaled_size)
+
+    def _get_pose_image(self, pose_name: str):
+        if pose_name in self.pose_images:
+            return self.pose_images[pose_name]
+
+        pose_image = self._load_pose_image(f"{pose_name}.png")
+        if pose_image is not None:
+            self.pose_images[pose_name] = pose_image
+
+        return pose_image
+
+    def _load_pose_image(self, image_name: str):
+        image_path = Path(__file__).with_name("pose_image") / image_name
+        if not image_path.exists():
+            return None
+
+        try:
+            image = pygame.image.load(str(image_path)).convert_alpha()
+        except pygame.error:
+            return None
+
+        image_width, image_height = image.get_size()
+        max_size = self.target_pose_box_size - 28
+        scale = min(max_size / image_width, max_size / image_height)
         scaled_size = (
             max(1, int(image_width * scale)),
             max(1, int(image_height * scale)),

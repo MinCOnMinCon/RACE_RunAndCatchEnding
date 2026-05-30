@@ -19,6 +19,7 @@ class PoseTolerance:
 class PoseRule:
     id: int
     name: str
+    alias: str
     checker: Callable[[PlayerLandmarks], bool]
 
     def check(self, landmarks: PlayerLandmarks | None) -> bool:
@@ -34,56 +35,67 @@ class PoseLibrary:
             PoseRule(
                 id=0,
                 name="x_arms",
+                alias="와칸다 포에버",
                 checker=self.is_x_arms_pose,
             ),
             PoseRule(
                 id=1,
                 name="dab",
+                alias="Dab",
                 checker=self.is_dab_pose,
             ),
             PoseRule(
                 id=2,
                 name="happy",
+                alias="기분 나쁠때의 포즈",
                 checker=self.is_happy_pose,
             ),
             PoseRule(
                 id=3,
                 name="so_cool",
+                alias="아.. 너무 멋지다",
                 checker=self.is_so_cool_pose,
             ),
             PoseRule(
                 id=4,
                 name="jojo_stand1",
+                alias="죠죠 서기1",
                 checker=self.is_jojo_stand1_pose,
             ),
             PoseRule(
                 id=5,
                 name="praise_the_sun",
+                alias="태양만세",
                 checker=self.is_praise_the_sun_pose,
             ),
             PoseRule(
                 id=6,
                 name="sor",
+                alias="ㄴㅇㄱ",
                 checker=self.is_sor_pose,
             ),
             PoseRule(
                 id=7,
                 name="jojo_stand2",
+                alias="죠죠 서기2",
                 checker=self.is_jojo_stand2_pose,
             ),
             PoseRule(
                 id=8,
                 name="no",
+                alias="no",
                 checker=self.is_no_pose,
             ),
             PoseRule(
                 id=9,
                 name="what",
+                alias="what",
                 checker=self.is_what_pose,
             ),
             PoseRule(
                 id=10,
                 name="jackson",
+                alias="마이클 잭슨",
                 checker=self.is_jackson_pose,
             ),
         ]
