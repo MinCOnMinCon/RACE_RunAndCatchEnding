@@ -133,7 +133,7 @@ class PoseDetector:
             if frame is None:
                 return None, {}
 
-        drawn_frame = self.draw_player_areas(frame)
+        drawn_frame = cv2.flip(frame, 1)
 
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
@@ -159,8 +159,7 @@ class PoseDetector:
 
         return drawn_frame, landmarks_by_player
 
-    def draw_player_areas(self, frame):
-        return cv2.flip(frame, 1)
+    
 
     def close(self):
         self.landmarker.close()

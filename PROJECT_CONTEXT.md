@@ -630,3 +630,320 @@ Disabling support for feedback tensors.
 
 - 지금은 신경 쓰지 않아도 된다.
 - 창이 꺼지거나 프로그램이 종료된다면 이 warning보다 Python 예외나 카메라 문제를 먼저 봐야 한다.
+
+---
+
+## 2026-05-29 작업 정리
+
+### 포즈 룰 작업
+
+오늘은 `PoseLibrary`에 목표 포즈 룰을 많이 추가하고 기존 룰을 조정했다.
+
+현재 주요 포즈 룰:
+
+- `x_arms`
+- `dab`
+- `happy`
+- `so_cool`
+- `jojo_stand1`
+- `praise_the_sun`
+- `sor`
+- `jojo_stand2`
+- `no`
+- `what`
+- `jackson`
+
+주요 변경:
+
+- `PoseRule`에서 `difficulty`를 제거하고 `id` 기반으로 관리한다.
+- `get_random_rule(rule_id=None)`는 인자가 없으면 랜덤 룰, 인자가 있으면 해당 id 룰을 반환한다.
+- 머리 위치 확인을 위해 랜드마크 `0, 7, 8`을 추적 대상에 포함했다.
+- 무릎/발 관련 랜드마크는 현재 룰에서 제외했다.
+- 포즈 룰 작성 시 `_angles_close`, `_joint_angle`, `_line_angle` 같은 기존 보조 함수를 재사용하는 방향으로 정리했다.
+
+### 포즈별 기준 요약
+
+`dab`
+
+- 두 손목이 어깨보다 위에 있어야 한다.
+- 얼굴을 덮는 손목은 두 어깨 사이에 있어야 한다.
+- 뻗는 손목은 어깨 바깥에 있어야 한다.
+- 뻗는 팔은 어깨-팔꿈치 라인과 팔꿈치-손목 라인이 비슷해야 한다.
+- 얼굴을 덮는 팔은 전체 일직선 대신, 덮는 팔꿈치-손목 각도와 뻗는 어깨-팔꿈치 각도를 비교한다.
+
+`happy`
+
+- 올린 팔의 팔꿈치 관절각이 약 45도이다.
+- 올린 손목은 같은 방향 귀 높이와 비슷해야 한다.
+- 내린 손목은 같은 방향 골반 높이와 비슷해야 한다.
+
+`so_cool`
+
+- 대각 팔은 팔꿈치-손목 라인이 45도 또는 135도이다.
+- 수평 팔은 팔꿈치-손목 라인이 0도 또는 180도이다.
+- 두 손목 높이가 비슷해야 한다.
+
+`jojo_stand1`
+
+- 올린 팔 손목은 코와 어깨 평균 높이 사이에 있어야 한다.
+- 올린 팔의 손목-팔꿈치-어깨 관절각은 약 30도이다.
+- 내린 팔의 어깨-팔꿈치 라인은 약 60도이다.
+- 내린 손목은 팔꿈치보다 아래에 있어야 한다.
+- 좌우 대칭 각도 문제 때문에 `min(angle, 180 - angle)` 방식으로 보정했다.
+
+`praise_the_sun`
+
+- 양쪽 어깨-팔꿈치 라인이 약 45도이다.
+- 양팔의 어깨-팔꿈치-손목 관절각이 180도에 가까워야 한다.
+- 좌우 대칭 포즈라 방향 함수는 따로 두지 않았다.
+
+`sor`
+
+- 올린 팔과 내린 팔로 나눈다.
+- 두 팔 모두 어깨-팔꿈치-손목 관절각이 90도이다.
+- 올린 손목은 팔꿈치보다 위에 있어야 한다.
+- 내린 손목은 팔꿈치보다 아래에 있어야 한다.
+
+`jojo_stand2`
+
+- 올린 팔은 어깨-팔꿈치-손목 관절각이 90도이다.
+- 올린 손목은 팔꿈치보다 위에 있어야 한다.
+- 내린 손목은 팔꿈치보다 아래에 있어야 한다.
+- 양쪽 팔꿈치 높이가 비슷해야 한다.
+- 올린 팔꿈치는 자기 어깨보다 몸 안쪽에 있어야 한다.
+
+`no`
+
+- 한쪽 팔만 검사한다.
+- 어깨-팔꿈치 라인이 수직에 가까워야 한다.
+- 손목은 두 어깨 평균 높이 근처에 있어야 한다.
+- 손목은 코보다 몸 안쪽에 있어야 한다.
+- 왼손이면 오른쪽 귀, 오른손이면 왼쪽 귀의 x 위치와 비슷해야 한다.
+
+`what`
+
+- 올린 팔과 내린 팔로 나눈다.
+- 올린 팔의 어깨가 내린 팔의 어깨보다 높아야 한다.
+- 두 팔 모두 어깨-팔꿈치-손목 관절각이 180도에 가까워야 한다.
+- 팔이 오른쪽 방향이면 왼손목이 아래 팔이어야 한다.
+- 팔이 왼쪽 방향이면 오른손목이 아래 팔이어야 한다.
+
+`jackson`
+
+- 굽힌 팔과 핀 팔로 나눈다.
+- 굽힌 팔꿈치는 자기 어깨보다 위에 있어야 한다.
+- 굽힌 손목은 코보다 위에 있어야 한다.
+- 굽힌 팔의 어깨-팔꿈치-손목 관절각은 60도이다.
+- 핀 팔의 어깨-팔꿈치-손목 관절각은 180도이다.
+- 핀 팔꿈치는 자기 어깨보다 바깥쪽에 있어야 한다.
+
+### 포즈 디버깅 함수
+
+`PoseLibrary`에 디버그용 함수를 추가했다.
+
+```python
+debug_bool_list(values: List[bool]) -> None
+```
+
+불리언 조건 리스트를 출력해서, 포즈 룰의 어떤 조건이 실패하는지 빠르게 확인하는 용도이다.
+
+### 스켈레톤 추출 스크립트
+
+`skeleton_extractor.py`를 추가했다.
+
+동작:
+
+- `image/` 폴더 안의 이미지 파일을 읽는다.
+- MediaPipe로 포즈를 감지한다.
+- 현재 프로젝트에서 사용하는 랜드마크만 이미지 위에 찍는다.
+- `PoseDetector.CONNECTIONS` 기준으로 선을 연결한다.
+- 결과 이미지를 `image_skeleton/파일명_skeleton.png`로 저장한다.
+
+기본 실행:
+
+```bash
+python skeleton_extractor.py
+```
+
+주의:
+
+- 실행 검증은 하지 않았다.
+- `mediapipe`, `cv2`가 설치된 같은 Python 환경에서 실행해야 한다.
+
+### PlayerState 추가
+
+`player_state.py`를 추가했다.
+
+플레이어의 레이스 상태를 관리한다.
+
+주요 값:
+
+- `total_distance = 1612.0`
+- `cur_speed`
+- `min_speed = 5.5`
+- `max_speed = 30.0`
+- `accel_value_per_suc = 4.0`
+- `decel_value_per_sec = 2.0`
+- `cur_pos`
+- `remained_distance`
+- `no_decel_time`
+- `dt`
+
+업데이트 흐름:
+
+```text
+update_dt()
+-> update_speed(is_success)
+-> update_distance()
+```
+
+성공 시:
+
+- `cur_speed += 4.0`
+- `no_decel_time = 2.0`
+
+실패 시:
+
+- `no_decel_time > 0`이면 감속하지 않고 유예 시간만 줄인다.
+- 유예 시간이 끝나면 `decel_value_per_sec * dt`만큼 감속한다.
+
+거리 계산:
+
+- `cur_pos += cur_speed * dt`
+- `remained_distance = total_distance - cur_pos`
+- 결승선을 넘으면 `cur_pos`는 `total_distance`에서 멈춘다.
+
+`PlayerState.update()`는 `PlayerStateResult`를 반환한다.
+
+```python
+PlayerStateResult(
+    cur_speed=...,
+    cur_pos=...,
+    remained_distance=...,
+)
+```
+
+### RenderData 구조 변경
+
+렌더러에 전달하는 데이터 구조를 정리했다.
+
+현재 `RenderData`는 다음 값을 가진다.
+
+```python
+drawn_frame
+cur_speed_by_player
+cur_pos_by_player
+remained_distance_by_player
+success_by_player
+pose_rules_by_player
+```
+
+`GameManager` 흐름:
+
+1. `PoseConnector.update()` 호출
+2. 플레이어별 `PlayerState.update(success)` 호출
+3. `Renderer.make_render_data(pose_result, player_state_results)` 호출
+4. `Renderer.render(render_data)` 호출
+
+### Pygame 렌더러 전환
+
+기존 OpenCV 렌더러를 Pygame 렌더러로 교체했다.
+
+이유:
+
+- OpenCV는 카메라 확인에는 좋지만 게임 UI를 만들기 불편하다.
+- Pygame은 텍스트, 패널, 진행도, 사운드, 성공 이펙트 구현이 더 쉽다.
+
+`PoseDetector`는 이제 중앙선과 플레이어 라벨을 그리지 않는다.
+
+현재 `PoseDetector.draw_player_areas()`는 카메라 프레임을 좌우반전해서 반환하는 역할만 한다.
+
+UI는 전부 `Renderer`가 담당한다.
+
+현재 Pygame UI:
+
+- 전체화면 카메라 프레임
+- 중앙 분리선
+- 플레이어별 얇은 반투명 테두리
+- 좌상단 목표 포즈 카드
+- 목표 포즈 카드에는 현재 목표 포즈 이름 표시
+- 왼쪽 아래 상태 패널
+- 상태 패널 위 왼쪽에 `PLAYER 1`, `PLAYER 2`
+- 상태 패널 안에 `SPEED`, 현재 속도, 현재 위치 / 전체 거리 표시
+- 오른쪽에는 `START`와 `FINISH`가 있는 수직 진행 트랙
+- 진행 트랙 위에 현재 위치 마커 표시
+
+### 성공 피드백
+
+성공 시 피드백을 추가했다.
+
+성공 플래시:
+
+- 성공한 플레이어 화면 테두리가 초록색으로 빛난다.
+- 약 0.35초 동안 서서히 사라진다.
+
+성공 사운드:
+
+- `sound/correct_player1.mp3`
+- `sound/correct_player2.mp3`
+
+플레이어 1 성공 시 `correct_player1.mp3`를 재생한다.
+
+플레이어 2 성공 시 `correct_player2.mp3`를 재생한다.
+
+사운드 파일이 없거나 로딩 실패하면 해당 플레이어는 무음으로 넘어간다.
+
+### 연속 성공 필터
+
+연속 성공이 발생하는 문제가 있었다.
+
+원인 후보:
+
+- 같은 포즈가 랜덤으로 연속 등장할 수 있다.
+- 룰이 바뀐 직후에도 같은 프레임에서 바로 성공 검사가 된다.
+- 포즈 룰의 tolerance가 넓고, 일부 포즈 조건이 서로 겹친다.
+- MediaPipe 스무딩 때문에 이전 프레임 자세가 잠깐 남을 수 있다.
+
+해결:
+
+`PoseConnector` 안에서 성공 이벤트를 필터링한다.
+
+현재 기준:
+
+```text
+현재 raw True, 이전 filtered False -> True
+현재 raw True, 이전 filtered True  -> False
+```
+
+즉 한 프레임 성공하면 다음 프레임은 raw 성공이어도 무조건 실패로 반환한다.
+
+이 필터링은 `GameManager`가 아니라 `PoseConnector`에서 처리한다.
+
+### 화면 구성 관련 판단
+
+노트북 카메라로 상체와 팔을 모두 잡으려면 사람이 멀리 서야 하고, 그 결과 화면에서 사람이 작게 보인다.
+
+따라서 실제 사람 이미지를 크게 보이게 하는 것보다:
+
+- 카메라 화면을 전체화면으로 사용
+- 스켈레톤 선을 잘 보이게 표시
+- UI는 반투명 패널로 정리
+
+하는 방향이 더 낫다고 판단했다.
+
+Pygame에서 실제 화면 크기를 읽어 UI를 배치한다.
+
+```python
+self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+self.window_width, self.window_height = self.screen.get_size()
+```
+
+### 남은 개선 후보
+
+- 목표 포즈 이름 대신 스켈레톤 이미지나 흰 아바타 이미지를 표시하기
+- 같은 포즈가 연속으로 뽑히지 않도록 `get_random_rule()` 개선하기
+- 새 포즈가 나온 직후 0.3초 정도 성공 판정을 막는 grace time 추가하기
+- 결승선 도착 시 승리 화면 추가하기
+- 진행도 트랙에 플레이어별 색상 다르게 주기
+- 상태 패널과 목표 포즈 카드 디자인 더 다듬기
+- 사운드 재생이 겹칠 때 볼륨/쿨다운 조정하기

@@ -9,6 +9,7 @@ class PlayerStateResult:
     cur_speed: float
     cur_pos: float
     remained_distance: float
+    is_finished: bool
 
 
 @dataclass
@@ -18,7 +19,7 @@ class PlayerState:
     max_speed: float = 30.0
     accel_value_per_suc: float = 4.0
     decel_value_per_sec: float = 2.0
-    no_decel_duration: float = 2.0
+    no_decel_duration: float = 3.3
     cur_speed: float = 5.5
     cur_pos: float = 0.0
     remained_distance: float = 1612.0
@@ -55,7 +56,21 @@ class PlayerState:
             cur_speed=self.cur_speed,
             cur_pos=self.cur_pos,
             remained_distance=self.remained_distance,
+            is_finished=self.is_finished(),
         )
+
+    def prepare_game(self) -> PlayerStateResult:
+        self.dt = 0.0
+        return PlayerStateResult(
+            cur_speed=self.cur_speed,
+            cur_pos=self.cur_pos,
+            remained_distance=self.remained_distance,
+            is_finished=self.is_finished(),
+        )
+
+    def reset_timer(self) -> None:
+        self.dt = 0.0
+        self.last_update_time = time.monotonic()
 
     def is_finished(self) -> bool:
         return self.cur_pos >= self.total_distance

@@ -10,7 +10,7 @@ from pose_detector import PlayerLandmarks
 
 @dataclass(frozen=True)
 class PoseTolerance:
-    angle: float = 25.0
+    angle: float = 20.0
     distance: float = 0.25
     position: float = 0.08
 
@@ -351,6 +351,8 @@ class PoseLibrary:
             up_shoulder_id=11,
             up_elbow_id=13,
             up_wrist_id=15,
+            down_shoulder_id=12,
+            down_elbow_id=14,
             is_left_wrist=True,
         ) or self._is_no_direction(
             landmarks=landmarks,
@@ -358,6 +360,8 @@ class PoseLibrary:
             up_shoulder_id=12,
             up_elbow_id=14,
             up_wrist_id=16,
+            down_shoulder_id=11,
+            down_elbow_id=13,
             is_left_wrist=False,
         )
 
@@ -368,6 +372,8 @@ class PoseLibrary:
         up_shoulder_id: int,
         up_elbow_id: int,
         up_wrist_id: int,
+        down_shoulder_id: int,
+        down_elbow_id: int,
         is_left_wrist: bool,
     ) -> bool:
         nose = landmarks[0]
@@ -377,14 +383,18 @@ class PoseLibrary:
         up_shoulder = landmarks[up_shoulder_id]
         up_elbow = landmarks[up_elbow_id]
         up_wrist = landmarks[up_wrist_id]
+        down_shoulder = landmarks[down_shoulder_id]
+        down_elbow = landmarks[down_elbow_id]
         shoulder_y = (left_shoulder["y"] + right_shoulder["y"]) / 2
         upper_arm_angle = abs(self._line_angle(up_shoulder, up_elbow))
+        down_upper_arm_angle = abs(self._line_angle(down_shoulder, down_elbow))
 
         upper_arm_is_vertical = self._angles_close(upper_arm_angle, 90.0)
+        down_upper_arm_is_vertical = self._angles_close(down_upper_arm_angle, 90.0)
         wrist_is_near_shoulder_height = (
             abs(up_wrist["y"] - shoulder_y) <= self.tolerance.position
         )
-        wrist_is_inside_nose = (
+        wrist_is_outside_nose = (
             up_wrist["x"] >= nose["x"] - self.tolerance.position
             if is_left_wrist
             else up_wrist["x"] <= nose["x"] + self.tolerance.position
@@ -393,8 +403,9 @@ class PoseLibrary:
 
         return (
             upper_arm_is_vertical
+            and down_upper_arm_is_vertical
             and wrist_is_near_shoulder_height
-            and wrist_is_inside_nose
+            and wrist_is_outside_nose
             and wrist_is_near_ear_x
         )
 
@@ -518,7 +529,7 @@ class PoseLibrary:
             bent_elbow["y"] <= bent_shoulder["y"] - self.tolerance.position
         )
         bent_wrist_is_above_nose = bent_wrist["y"] <= nose["y"] + self.tolerance.position
-        bent_arm_is_60 = self._angles_close(bent_elbow_angle, 60.0)
+        #bent_arm_is_60 = self._angles_close(bent_elbow_angle, 60.0)
         straight_arm_is_straight = self._angles_close(straight_elbow_angle, 180.0)
         straight_elbow_is_outside_shoulder = (
             straight_elbow["x"] <= straight_shoulder["x"] - self.tolerance.position
@@ -534,7 +545,7 @@ class PoseLibrary:
         return (
             bent_elbow_is_above_shoulder
             and bent_wrist_is_above_nose
-            and bent_arm_is_60
+            #and bent_arm_is_60
             and straight_arm_is_straight
             and straight_elbow_is_outside_shoulder
         )
@@ -562,7 +573,7 @@ class PoseLibrary:
         down_wrist = landmarks[down_wrist_id]
 
         up_elbow_angle = self._joint_angle(up_wrist, up_elbow, up_shoulder)
-        down_upper_angle = abs(self._line_angle(down_shoulder, down_elbow))
+        down_upper_angle = abs(self._line_angle(down_elbow, down_wrist))
         down_upper_angle = min(down_upper_angle, 180.0 - down_upper_angle)
 
         up_wrist_is_between_nose_and_shoulders = (
@@ -575,12 +586,18 @@ class PoseLibrary:
         down_wrist_is_below_elbow = (
             down_wrist["y"] >= down_elbow["y"] - self.tolerance.position
         )
+        up_elbow_is_inside_shoulder = (
+            up_elbow["x"] >= up_shoulder["x"] - self.tolerance.position
+            if up_shoulder_id == 11
+            else up_elbow["x"] <= up_shoulder["x"] + self.tolerance.position
+        )
         
         return (
             up_wrist_is_between_nose_and_shoulders
             and up_arm_is_bent
             and down_upper_arm_is_60
             and down_wrist_is_below_elbow
+            and up_elbow_is_inside_shoulder
         )
 
     def _is_so_cool_direction(
@@ -642,13 +659,17 @@ class PoseLibrary:
         up_arm_is_bent = self._angles_close(up_elbow_angle, 45.0)
         up_wrist_is_near_ear = abs(up_wrist["y"] - up_ear["y"]) <= self.tolerance.position
         
-        down_wrist_is_near_hip = abs(down_wrist["y"] - down_hip["y"]) <= self.tolerance.position
+        down_wrist_is_between_elbow_and_hip = (
+            down_elbow["y"] + self.tolerance.position
+            <= down_wrist["y"]
+            <= down_hip["y"] + self.tolerance.position
+        )
 
         return (
             up_arm_is_bent
             and up_wrist_is_near_ear
             
-            and down_wrist_is_near_hip
+            and down_wrist_is_between_elbow_and_hip
         )
 
     def _is_dab_direction(
@@ -676,7 +697,7 @@ class PoseLibrary:
             extended_wrist["y"] <= shoulder_y + self.tolerance.position
             and cover_wrist["y"] <= shoulder_y + self.tolerance.position
         )
-        cover_wrist_is_between_shoulders = shoulder_min_x <= cover_wrist["x"] <= shoulder_max_x
+        
         extended_wrist_is_outside_shoulder = (
             extended_wrist["x"] <= shoulder_min_x - self.tolerance.position
             if direction == -1
@@ -695,7 +716,6 @@ class PoseLibrary:
 
         return (
             both_wrists_are_high
-            and cover_wrist_is_between_shoulders
             and extended_wrist_is_outside_shoulder
             and extended_arm_is_straight
             and cover_arm_matches_extended_arm
