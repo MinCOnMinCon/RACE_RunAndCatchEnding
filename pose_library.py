@@ -548,12 +548,7 @@ class PoseLibrary:
             if straight_shoulder_id == 11
             else straight_elbow["x"] >= straight_shoulder["x"] + self.tolerance.position
         )
-        self.debug_bool_list([
-            bent_elbow_is_above_shoulder,
-            bent_wrist_is_above_nose,
-            bent_elbow_angle,
-            straight_arm_is_straight,
-            straight_elbow_is_outside_shoulder])
+            
         return (
             bent_elbow_is_above_shoulder
             and bent_wrist_is_above_nose

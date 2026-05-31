@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict
 
 import cv2
@@ -10,6 +9,7 @@ import pygame
 
 from player_state import PlayerStateResult
 from pose_library import PoseRule
+from resource_path import ResourcePath
 
 
 @dataclass(frozen=True)
@@ -83,6 +83,7 @@ class Renderer:
 
     def show_countdown(self, data: RenderData) -> None:
         for text in ("Ready?", "3", "2", "1", "Go!"):
+            pygame.event.pump()
             self.render(data)
             self._draw_countdown_overlay(text)
             pygame.display.flip()
@@ -402,7 +403,7 @@ class Renderer:
         pygame.time.wait(3000)
 
     def _load_image(self, image_name: str):
-        image_path = Path(__file__).with_name("image") / image_name
+        image_path = ResourcePath.get(f"image/{image_name}")
         if not image_path.exists():
             return None
 
@@ -430,7 +431,7 @@ class Renderer:
         return pose_image
 
     def _load_pose_image(self, image_name: str):
-        image_path = Path(__file__).with_name("pose_image") / image_name
+        image_path = ResourcePath.get(f"pose_image/{image_name}")
         if not image_path.exists():
             return None
 
@@ -470,5 +471,5 @@ class Renderer:
 
     @staticmethod
     def _get_sound_path(sound_name: str):
-        sound_path = Path(__file__).with_name("sound") / sound_name
+        sound_path = ResourcePath.get(f"sound/{sound_name}")
         return sound_path if sound_path.exists() else None

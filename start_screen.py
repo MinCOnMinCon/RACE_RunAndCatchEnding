@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pygame
+
+from resource_path import ResourcePath
 
 
 class StartScreen:
@@ -113,7 +113,7 @@ class StartScreen:
         self.screen.blit(surface, (x, y))
 
     def _load_image(self, image_name: str):
-        image_path = Path(__file__).with_name("image") / image_name
+        image_path = ResourcePath.get(f"image/{image_name}")
         if not image_path.exists():
             return None
 
@@ -147,7 +147,7 @@ class StartScreen:
 
     @staticmethod
     def _get_sound_path(sound_name: str):
-        sound_path = Path(__file__).with_name("sound") / sound_name
+        sound_path = ResourcePath.get(f"sound/{sound_name}")
         return sound_path if sound_path.exists() else None
 
     @staticmethod

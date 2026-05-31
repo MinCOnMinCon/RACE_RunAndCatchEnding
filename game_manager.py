@@ -66,7 +66,7 @@ class GameManager:
                 )
 
                 self.renderer.render(render_data)
-                self._print_success_players(pose_result.success_by_player)
+                # self._print_success_players(pose_result.success_by_player)
 
                 winner_id = self._get_winner_id(player_state_results)
                 if winner_id is not None:

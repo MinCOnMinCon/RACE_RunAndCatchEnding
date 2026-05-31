@@ -9,6 +9,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 from camera import Camera
+from resource_path import ResourcePath
 
 
 LandmarkData = Dict[str, float]
@@ -113,7 +114,9 @@ class PoseDetector:
         self.smoother = LandmarkSmoother(alpha=self.config.smoothing_alpha)
         self.frame_index = 0
 
-        base_options = python.BaseOptions(model_asset_path=self.config.model_path)
+        base_options = python.BaseOptions(
+            model_asset_path=ResourcePath.get_mediapipe_model_path(self.config.model_path)
+        )
         options = vision.PoseLandmarkerOptions(
             base_options=base_options,
             running_mode=vision.RunningMode.VIDEO,
